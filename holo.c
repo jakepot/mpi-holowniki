@@ -76,7 +76,6 @@ int sendToAll(long * msg, int msg_size, int tag){
 
 int main(int argc, char **argv)
 {
-	int rank,size;
 	int msg[MSG_SIZE];
 	MPI_Status status;
 	pthread_t tid;
@@ -91,8 +90,10 @@ int main(int argc, char **argv)
 	ts.tv_nsec = 0;
 	clock_settime(CLOCK_MONOTONIC, &ts);
 	srand(time(NULL)+rank);
-	pthread_t tid;
-	pthread_create(&tid, NULL, myThreadFun, (void *) rank);
+
+	printf("rank = %d\n", rank);
+	pthread_create(&tid, NULL, recvFun, NULL);
+
 	while(1){
 		// usleep(1000*(rand()%100));
 		usleep(100000*(rand()%100+5));
