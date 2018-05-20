@@ -15,12 +15,13 @@
 
 // msg[0] = timestamp
 // msg[1] = rank
-// msg[2] =
+// msg[2] = boatsReq
 
 int inQueue = 0;
 int holowniki = 15;
 int position = -1;
 int rank = -1;
+int boatsReq = 7;
 long timestamp = -1;
 int size = -1;
 int repliesRemaining = 0;
@@ -47,6 +48,8 @@ void *recvFun()
 				break;
 			case 1:
 				holowniki -= msg[2];
+				if (inQueue)
+					position -= 1;
 				// wiadomosc o wyjsciu z kolejki jesli wychodzi
 				break;
 			case 2:
@@ -58,7 +61,7 @@ void *recvFun()
 				// else
 					// ;
 				repliesRemaining -= 1;
-				printf("Dostalem odpowiedz od %d\n", status.MPI_SOURCE);
+				// printf("Dostalem odpowiedz od %d\n", status.MPI_SOURCE);
 				break;
 		}
 	}
@@ -104,13 +107,34 @@ int main(int argc, char **argv)
 		long msg[2];
 		msg[0] = timestamp;
 		msg[1] = rank;
-		printf("Statek %d wysyła request time: %ld\n", rank, timestamp);
+		printf("%d chce wpłynąć do portu.\n", rank);
+		// printf("Statek %d wysyła request time: %ld\n", rank, timestamp);
 		repliesRemaining = size - 1;
+		position = 0;
 		sendToAll(msg, 2, REQUEST_TAG);
 		while(repliesRemaining != 0){
 			usleep(10000);
 		}
-		printf("Ok, wszyscy mi odpowiedzieli\n");
+		while(position > 0){
+			usleep(10000);
+		}
+		inQueue = 0;
+		printf("%d : %d holownikow dostepnych\n", rank, holowniki);
+		while(holowniki < boatsReq){
+			usleep(10000);
+		}
+		long cmsg[3];
+		msg[0] = timestamp;
+		msg[1] = rank;
+		msg[2] = boatsReq;
+		// wejscie do strefy krytycznej
+		holowniki -= boatsReq;
+		sendToAll(msg, 3, TAKE_TUGBOATS_TAG);
+		sleep(2); // strefa krytyczna
+		sendToAll(msg, 3, RELEASE_TUGBOATS_TAG);
+		holowniki += boatsReq;
+
+		printf("%d, wpłynąłem\n", rank);
 	}
 
 	MPI_Finalize();

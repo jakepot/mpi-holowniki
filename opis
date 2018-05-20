@@ -11,20 +11,20 @@ Mogą wystąpic dwa scenariusze:
     2) Co najmniej jedna z wiadomości zwrotnych jest negatywna
     . proces zapisuje sobie liczbę odpowiedzi negatywnych jako miejsce w kolejce
         . proces zaprzestaje swojego żądania i przechodzi w stan
- 
+
 . proces otrzymuje zapytanie o kolejkę:
     1) jeżeli proces nie ubiega się o przydział holowników, to odsyła wiadomośc pozytywną
-    2) jeżeli proces też ubiega sie o przydział holowników, to porównuje timestampy i odsyła stosowna odpowiedź
+    2) jeżeli proces też ubiega się o przydział holowników, to porównuje timestampy i odsyła stosowna odpowiedź
         w przypadku takich samych timestampów, konflikt jest rozstrzygany na korzyść procesu z niższym rankiem
     3) jeżeli proces ma aktualnie przydzielone holowniki, to odsyła wiadomośc pozytywną
- 
+
 . proces otrzymuje informacje o zmianie ilości wolnych holowników
     - odpowiednio zmienia swoją lokalną liczbę wolnych holowników
- 
+
 . proces otrzymuje informację o wyjściu z kolejki innego procesu:
     - proces zmniejsza o 1 zmienną miejsca w kolejce
     - jeżeli proces stoi teraz na czele kolejki, to realizuje scenariusz 1)
- 
+
 wątek wchodzenia do strefy krytycznej
 while(1):
     wait(random())
@@ -43,7 +43,7 @@ while(1):
   inQueue = false
   strefa krytyczna
   sendToAll(releaseTugboatsTag, nTugboats)
- 
+
 wątek odpowiedzi
 while(1):
   waitForMessage()
