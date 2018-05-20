@@ -115,14 +115,15 @@ int main(int argc, char **argv)
 		while(repliesRemaining != 0){
 			usleep(10000);
 		}
+		printf("%d : %d w kolejce\n", rank, position);
 		while(position > 0){
 			usleep(10000);
 		}
-		inQueue = 0;
 		printf("%d : %d holownikow dostepnych\n", rank, holowniki);
 		while(holowniki < boatsReq){
 			usleep(10000);
 		}
+		inQueue = 0;
 		long cmsg[3];
 		msg[0] = timestamp;
 		msg[1] = rank;
@@ -130,7 +131,7 @@ int main(int argc, char **argv)
 		// wejscie do strefy krytycznej
 		holowniki -= boatsReq;
 		sendToAll(msg, 3, TAKE_TUGBOATS_TAG);
-		sleep(2); // strefa krytyczna
+		sleep(5); // strefa krytyczna
 		sendToAll(msg, 3, RELEASE_TUGBOATS_TAG);
 		holowniki += boatsReq;
 
