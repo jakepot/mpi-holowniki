@@ -94,7 +94,8 @@ int main(int argc, char **argv)
 	clock_settime(CLOCK_MONOTONIC, &ts);
 	srand(time(NULL)+rank);
 
-	printf("rank = %d\n", rank);
+	boatsReq = rand()%7 + 1;
+	printf("Statek %d, potrzebuje %d holownikow\n", rank, boatsReq);
 	pthread_create(&tid, NULL, recvFun, NULL);
 
 	while(1){
