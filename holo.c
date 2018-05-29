@@ -35,7 +35,6 @@ void *recvFun()
 		int reply[1];
 		switch (status.MPI_TAG) {
 			case 0:
-				// mozna trzymac w kolejce senderow i potem ich usuwac z listy
 				if (inQueue) {
 					if (timestamp < msg[0] || timestamp == msg[0] && rank < msg[1]) {
 						reply[0] = IMBEFOREYOU;
@@ -48,20 +47,14 @@ void *recvFun()
 				break;
 			case 1:
 				holowniki -= msg[2];
-				if (inQueue)
-					position -= 1;
-				// wiadomosc o wyjsciu z kolejki jesli wychodzi
+				if (inQueue) position -= 1;
 				break;
 			case 2:
 				holowniki += msg[2];
 				break;
 			case 3:
-				if (msg[0] == IMBEFOREYOU)
-					position += 1;
-				// else
-					// ;
+				if (msg[0] == IMBEFOREYOU) position += 1;
 				repliesRemaining -= 1;
-				// printf("Dostalem odpowiedz od %d\n", status.MPI_SOURCE);
 				break;
 		}
 	}
@@ -99,7 +92,6 @@ int main(int argc, char **argv)
 	pthread_create(&tid, NULL, recvFun, NULL);
 
 	while(1){
-		// usleep(1000*(rand()%100));
 		usleep(100000*(rand()%100+5));
 		inQueue = 1;
 		struct timespec tst;
@@ -109,7 +101,6 @@ int main(int argc, char **argv)
 		msg[0] = timestamp;
 		msg[1] = rank;
 		printf("%d chce wpłynąć do portu.\n", rank);
-		// printf("Statek %d wysyła request time: %ld\n", rank, timestamp);
 		repliesRemaining = size - 1;
 		position = 0;
 		sendToAll(msg, 2, REQUEST_TAG);
@@ -126,17 +117,17 @@ int main(int argc, char **argv)
 		}
 		inQueue = 0;
 		long cmsg[3];
-		msg[0] = timestamp;
-		msg[1] = rank;
-		msg[2] = boatsReq;
+		cmsg[0] = timestamp;
+		cmsg[1] = rank;
+		cmsg[2] = boatsReq;
 		// wejscie do strefy krytycznej
 		holowniki -= boatsReq;
-		sendToAll(msg, 3, TAKE_TUGBOATS_TAG);
+		sendToAll(cmsg, 3, TAKE_TUGBOATS_TAG);
 		sleep(5); // strefa krytyczna
-		sendToAll(msg, 3, RELEASE_TUGBOATS_TAG);
+		sendToAll(cmsg, 3, RELEASE_TUGBOATS_TAG);
 		holowniki += boatsReq;
 
-		printf("%d, wpłynąłem\n", rank);
+		printf("%d, przepłynąłem\n", rank);
 	}
 
 	MPI_Finalize();
