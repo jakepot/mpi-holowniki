@@ -19,7 +19,6 @@
 
 int inQueue = 0;
 int holowniki = 25;
-int position = -1;
 int reserved = 0;
 int rank = -1;
 int boatsReq = 7;
@@ -49,13 +48,13 @@ void *recvFun()
 				MPI_Send(reply, 1, MPI_LONG, status.MPI_SOURCE, REPLY_TAG, MPI_COMM_WORLD);
 				break;
 			case TAKE_TUGBOATS_TAG:
-				holowniki -= msg[2];
+				holowniki -= msg[0];
 				if (inQueue) {
-					reserved -= msg[2];
+					reserved -= msg[0];
 				}
 				break;
 			case RELEASE_TUGBOATS_TAG:
-				holowniki += msg[2];
+				holowniki += msg[0];
 				break;
 			case REPLY_TAG:
 				if (msg[0] != GO_AHEAD) {
@@ -91,8 +90,6 @@ int main(int argc, char **argv)
 		return(-1);
 	}
 
-printf("time: %f\n", MPI_Wtime());
-
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
 	MPI_Comm_size( MPI_COMM_WORLD, &size );
 
@@ -124,18 +121,18 @@ printf("time: %f\n", MPI_Wtime());
 			usleep(10000);
 		}
 		inQueue = 0;
-		long cmsg[3];
-		cmsg[0] = timestamp;
-		cmsg[1] = rank;
-		cmsg[2] = boatsReq;
-		// wejscie do strefy krytycznej
+		long cmsg[1];
+		// cmsg[0] = timestamp;
+		// cmsg[1] = rank;
+		// cmsg[2] = boatsReq;
+		cmsg[0] = boatsReq;
+		// wejscie do sekcji krytycznej
 		printf("[%d]: wchodze do strefy krytycznej, zabieram %d holownikow\n", rank, boatsReq);
 		holowniki -= boatsReq;
-		sendToAll(cmsg, 3, TAKE_TUGBOATS_TAG);
-		sleep(5); // strefa krytyczna
-		sendToAll(cmsg, 3, RELEASE_TUGBOATS_TAG);
+		sendToAll(cmsg, 1, TAKE_TUGBOATS_TAG);
+		sleep(5); // sekcja krytyczna
+		sendToAll(cmsg, 1, RELEASE_TUGBOATS_TAG);
 		holowniki += boatsReq;
-
 		printf("[%d]: wyszedłem ze strefy krytycznej, oddaje %d holownikow\n", rank, boatsReq);
 	}
 

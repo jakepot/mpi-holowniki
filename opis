@@ -1,67 +1,60 @@
-Na początku procesy ustawiają sobie liczbę dostępnych holowników
-Jeżeli statek chce skorzystać z holowników to wysyła prosbę o pozwolenie na przydział holownikow do wszystkich innych procesów wraz z timestampem.
-Mogą wystąpic dwa scenariusze:
-    1) wszystkie inne procesy odsyłaja do niego wiadomość ze zgodą
-    . jeżeli nie ma wystarczającej ilości wolnych holowników to proces przechodzi w stan oczekiwania, sprawdzając liczbę
-    holowników po otrzymaniu wiadomości o ich zwolnieniu przez inny statek
-        . wysyła do wszystkich wiadomość o ilości zajmowanych holowników (np. -4) wraz informacją o wyjściu z kolejki
-        . sekcja krytyczna (obsługa w porcie)
-        . wysyła do wszystkich wiadomość o ilości zwalnianych holowników (np. +4)
-        . algorytm jest wykonywany ponownie z nowym timestampem
-    2) Co najmniej jedna z wiadomości zwrotnych jest negatywna
-    . proces zapisuje sobie liczbę odpowiedzi negatywnych jako miejsce w kolejce
-        . proces zaprzestaje swojego żądania i przechodzi w stan
+Na początku wszystkie procesy ustawiają sobie liczbę dostępnych holowników oraz synchronizują zegary.
+Procesy działają w pętli symulującej wpływanie i wypływanie statków z/do portu.
+Oprócz głównej pętli równolegle działa wątek obsługujący przychodzące wiadomości.
 
-. proces otrzymuje zapytanie o kolejkę:
-    1) jeżeli proces nie ubiega się o przydział holowników, to odsyła wiadomośc pozytywną
-    2) jeżeli proces też ubiega się o przydział holowników, to porównuje timestampy i odsyła stosowna odpowiedź
-        w przypadku takich samych timestampów, konflikt jest rozstrzygany na korzyść procesu z niższym rankiem
-    3) jeżeli proces ma aktualnie przydzielone holowniki, to odsyła wiadomośc pozytywną
+Jeżeli proces A chce skorzystać z holowników, ustawia sobie timestamp i wysyła do pozostałych procesów prośbę o zgodę na uzyskanie zasobów.
+W odpowiedzi może dostać od procesu B:
+  a) zgodę, jeśli:
+    * proces B nie ubiega się o przydział zasobów, lub
+    * proces B ubiega się o przydział zasobów, ale jego timestamp jest wyższy od procesu A, lub
+    * proces B ubiega się o przydział zasobów, jego timestamp jest równy timestampowi procesu A, ale proces B ma wyższy rank niż proces A
+  b) liczbę zarezerwowanych holowników, w pozostałych przypadkach (proces B ma priorytet nad procesem A)
+Następnie, po otrzymaniu wszystkich odpowiedzi, jeżeli suma własnych oraz zarezerwowanych przez inne procesy holowników jest mniejsza od liczby obecnie dostępnych, proces A przechodzi w stan aktywnego czekania.
+Kiedy liczba dostępnych holowników będzie wystarczająca dla procesu A oraz ewentualnych innych procesów rezerwujących holowniki, proces A wysyła do wszystkich procesów wiadomość o zajęciu danej liczby holowników, po czym wchodzi do strefy krytycznej.
+Po upłynięciu czasu pobytu w sekcji krytycznej, proces A rozsyła do pozozstałych procesów wiadomość o zwolnieniu holowników i wraca na początek pętli.
 
-. proces otrzymuje informacje o zmianie ilości wolnych holowników
-    - odpowiednio zmienia swoją lokalną liczbę wolnych holowników
+Wątek obsługi wiadomości w odpowiedzi na:
+  a) wiadomość z prośbą o zgodę - ustala który proces ma priorytet (jak wyżej) i odsyła stosowną odpowiedź,
+  b) wiadomość o zajęciu holowników - zmienia liczbę dostępnych holowników oraz odejmuje tą liczbą od liczby zarezerwowanych, jeśli obecnie ubiega się o ich przydział,
+  c) wiadomość o oddaniu holowników - zmienia liczbę dostępnych holowników,
+  d) wiadomość zwrotną na prośbę - jeśli wiadomość nie jest zgodą, zwiększa liczbę zarezerwowanych holowników.
 
-. proces otrzymuje informację o wyjściu z kolejki innego procesu:
-    - proces zmniejsza o 1 zmienną miejsca w kolejce
-    - jeżeli proces stoi teraz na czele kolejki, to realizuje scenariusz 1)
+Wykorzystanie metody rezerwacji zamiast kolejki jak w poprzedniej wersji naszego algorytmu pozwoliło na usprawnienie wchodzenia do sekcji krytycznej, np.:
+3 statki wymagające 3 holowników, 1 statek zwalnia 11 holowników, wówczas 3 statki zająć holowniki naraz zamiast po kolei.
 
 wątek wchodzenia do strefy krytycznej
 while(1):
-    wait(random())
+  wait(random())
+  generateTimestamp()
   inQueue = true
-    generateTimestamp()
-    sendToAll(requestTag, timestamp, rank)
-  waitingForReplies = true
-    waitForAllReplies()
-  position = trueReplies
-  waitingForReplies = false
-  while position > 0:
-    waitForQueueUpdate()
-    while notEnoughTugboats:
-    waitForTugboatsUpdate()
+  sendToAll(requestTag, timestamp, rank)
+  waitForAllReplies()
+  while (availableBoats - reservedBoats < requiredBoats):
+    sleep()
   sendToAll(takeTugboatsTag, nTugboats)
   inQueue = false
-  strefa krytyczna
+  <strefa krytyczna>
   sendToAll(releaseTugboatsTag, nTugboats)
 
-wątek odpowiedzi
+wątek obsługi wiadomości
 while(1):
   waitForMessage()
   if tag == requestTag:
     if inQueue:
-      if myTimestamp == requestTimestamp:
-        if myRank < requestRank:
-          sendReply(true)
-        else:
-          sendReply(false)
-      if myTimestamp < requestTimestamp:
-        sendReply(true)
+      if myTimestamp < requestTimestamp ||
+         myTimestamp == requestTimestamp && myRank < requestRank:
+        sendReply(required)
       else:
-        sendReply(false)
+        sendReply(go_ahead)
     else:
-      sendReply(false) // nie czekam
+      sendReply(go_ahead)
   if tag == takeTugboatsTag:
     tugboats -= nTugboats
-    position -= 1
+    if inQueue:
+      reserved -= nTugboats
   if tag == releaseTugboatsTag:
     tugboats += nTugboats
+  if tag == replyTag:
+    if reply != go_ahead:
+      reserved += nTugboats
+    repliesRemaining -= 1
