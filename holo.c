@@ -90,14 +90,14 @@ int main(int argc, char **argv)
 		printf("MPI does not provide needed threading level\n");
 		return(-1);
 	}
+
+printf("time: %f\n", MPI_Wtime());
+
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
 	MPI_Comm_size( MPI_COMM_WORLD, &size );
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	struct timespec ts;
-	ts.tv_sec = 0;
-	ts.tv_nsec = 0;
-	clock_settime(CLOCK_MONOTONIC, &ts);
+	double startTime = MPI_Wtime();
 	srand(time(NULL)+rank);
 
 	boatsReq = rand()%7 + 2;
@@ -107,9 +107,7 @@ int main(int argc, char **argv)
 	while(1){
 		usleep(100000*(rand()%100+5));
 		inQueue = 1;
-		struct timespec tst;
-		clock_gettime(CLOCK_MONOTONIC, &tst);
-		timestamp = 1000 * tst.tv_sec + (tst.tv_nsec / 1000000);
+		timestamp = (long)(1000 * (MPI_Wtime() - startTime));
 		long msg[2];
 		msg[0] = timestamp;
 		msg[1] = rank;
